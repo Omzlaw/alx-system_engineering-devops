@@ -1,2 +1,2 @@
 #!/bin/bash
-echo $(cat) | sed -r 's/[A]+/Z/g' | sed -r 's/[c]+/e/g'
+echo $(cat) | tr "A" "Z" | tr "c" "e"
