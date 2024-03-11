@@ -2,49 +2,29 @@
 """Function to query a list of all hot posts on a given Reddit subreddit."""
 import requests
 
-def recurse(subreddit, hot_list=[], after=None):
-  """
-  This function recursively queries the Reddit API and returns a list containing 
-  titles of all hot articles for a given subreddit.
 
-  Args:
-      subreddit: The name of the subreddit (e.g., "programming").
-      hot_list (list, optional): An empty list to accumulate titles (default: []).
-      after (str, optional): A marker for pagination after the previous page (default: None).
-
-  Returns:
-      A list containing titles of all hot articles or None if the subreddit is invalid.
-  """
-
-  # Set a custom User-Agent to avoid throttling
-  headers = {
+def recurse(subreddit, hot_list=[], after="", count=0):
+    """Returns a list of titles of all hot posts on a given subreddit."""
+    url = "https://www.reddit.com/r/{}/hot/.json".format(subreddit)
+    headers = {
         "User-Agent": "linux:0x16.api.advanced:v1.0.0 (by /u/bdov_)"
-  }
+    }
+    params = {
+        "after": after,
+        "count": count,
+        "limit": 100
+    }
+    response = requests.get(url, headers=headers, params=params,
+                            allow_redirects=False)
+    if response.status_code == 404:
+        return None
 
-  # Construct the API URL with pagination parameter (after)
-  url = f"https://reddit.com/r/{subreddit}/hot.json"
-  params = {'after': after} if after else {}
+    results = response.json().get("data")
+    after = results.get("after")
+    count += results.get("dist")
+    for c in results.get("children"):
+        hot_list.append(c.get("data").get("title"))
 
-  # Send a GET request without following redirects
-  response = requests.get(url, headers=headers, allow_redirects=False, params=params)
-
-  # Check for successful response
-  if response.status_code == 200:
-    # Parse the JSON data
-    data = response.json()
-    # Extract data and titles
-    data = data.get("data", {})
-    after = data.get("after")
-    children = data.get("children", [])
-    titles = [child.get("data", {}).get("title", "") for child in children]
-
-    # Append titles to the list and call recursively if there's more data
-    hot_list.extend(titles)
-    if after:
-      return recurse(subreddit, hot_list, after)
-    else:
-      return hot_list
-  else:
-    # Invalid subreddit or error, return None
-    return None
-
+    if after is not None:
+        return recurse(subreddit, hot_list, after, count)
+    return hot_list
